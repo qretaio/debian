@@ -1,12 +1,12 @@
 [Unit]
-Description=piebox boot setup (hostname + local hosts entry)
+Description=piebox boot setup (hostname, hosts entry, DNS)
 DefaultDependencies=no
 Before=sysinit.target
 
 [Service]
 Type=oneshot
 RemainAfterExit=yes
-ExecStart=/bin/sh -c 'hostname piebox 2>/dev/null || true; grep -q "[[:space:]]piebox\\([[:space:]]\\|$\\)" /etc/hosts 2>/dev/null || printf "127.0.0.1\\tlocalhost piebox\\n" >> /etc/hosts'
+ExecStart=/bin/sh -c 'hostname piebox 2>/dev/null || true; grep -q "[[:space:]]piebox\\([[:space:]]\\|$\\)" /etc/hosts 2>/dev/null || printf "127.0.0.1\\tlocalhost piebox\\n" >> /etc/hosts; rm -f /etc/resolv.conf 2>/dev/null || true; printf "options use-vc\\nnameserver 1.1.1.1\\n" > /etc/resolv.conf'
 
 [Install]
 WantedBy=sysinit.target

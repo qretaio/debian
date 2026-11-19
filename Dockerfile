@@ -62,12 +62,8 @@ COPY piebox-vsock-bridge.service /etc/systemd/system/piebox-vsock-bridge.service
 # kernel cmdline that piebox passes at boot.
 COPY piebox-boot.service /etc/systemd/system/piebox-boot.service
 
-# DNS: use TCP so TSI proxies the resolver through vsock like any other
-# socket (cloud-init's resolv.conf is not usable here). Do this at build time;
-# /etc/resolv.conf is writable in the builder, unlike /etc/hosts.
-RUN rm -f /etc/resolv.conf && \
-    printf 'options use-vc\nnameserver 1.1.1.1\n' > /etc/resolv.conf
-
+# DNS is set by piebox-boot.service at boot (Docker mounts /etc/resolv.conf
+# read-only during image build). TCP resolver so TSI proxies DNS via vsock.
 RUN systemctl enable ssh.service piebox-vsock-bridge.service piebox-boot.service
 
 # A marker so piebox can tell a properly built zygote from a random image.
