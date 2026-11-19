@@ -6,15 +6,11 @@ Before=sysinit.target
 [Service]
 Type=oneshot
 RemainAfterExit=yes
-# The host extraction sets every file to the host uid and virtiofs ignores
-# chown, so /etc/sudoers (owned by 501) is rejected by sudo. The image bakes
-# correct root-owned, setuid sources under /opt/piebox-image/sudo; copy them
-# to a tmpfs (where ownership+setuid work) and bind-mount into place. No
-# chown/chmod logic lives here — it is all in the Dockerfile now.
 ExecStart=/bin/sh -c '\
-  mkdir -p /run/piebox-sudo /run/piebox-etc/sudoers.d && \
+  mkdir -p /run/piebox-sudo /run/piebox-etc && \
   mount -t tmpfs tmpfs /run/piebox-sudo && \
   mount -t tmpfs tmpfs /run/piebox-etc && \
+  mkdir -p /run/piebox-etc/sudoers.d && \
   cp /opt/piebox-image/sudo/sudo /run/piebox-sudo/sudo && \
   chmod 4755 /run/piebox-sudo/sudo && \
   cp /opt/piebox-image/sudo/sudoers /opt/piebox-image/sudo/sudo.conf /run/piebox-etc/ && \
