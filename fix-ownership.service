@@ -1,16 +1,31 @@
 [Unit]
-Description=Fix ownership of files written by the unprivileged host
+Description=Fix sudo on the unprivileged-host rootfs
 DefaultDependencies=no
 Before=sysinit.target
 
 [Service]
 Type=oneshot
 RemainAfterExit=yes
-# The zygote rootfs is extracted on an unprivileged macOS host, so every file
-# is owned by the host uid (501) rather than root. sudo rejects a non-root
-# owned /etc/sudoers; sshd rejects non-root host keys. Fix the few files that
-# care, inside the guest where we ARE root.
-ExecStart=/bin/sh -c 'chown root:root /etc/sudoers /etc/sudo.conf /etc/sudoers.d /etc/sudoers.d/* /usr/bin/sudo /usr/lib/sudo/sudoers.so /etc/ssh/ssh_host_* 2>/dev/null || true; chmod 0440 /etc/sudoers /etc/sudo.conf /etc/sudoers.d/* 2>/dev/null || true; install -m 4755 -o root /usr/bin/sudo /usr/local/bin/sudo 2>/dev/null || true'
+# The zygote rootfs is built/extracted on an unprivileged macOS host, so ALL
+# files are owned by the host uid (501) and virtiofs (LinuxSimplified) ignores
+# chown. sudo refuses a non-root-owned /etc/sudoers and a non-setuid binary.
+# Give sudo a tmpfs-backed copy (where root ownership + setuid DO work) and
+# bind-mount it over /usr/bin/sudo; also bind-mount sudoers from tmpfs so the
+# ownership check passes. Everything happens in the guest, where we are root.
+ExecStart=/bin/sh -c '\
+  mkdir -p /run/piebox-sudo /run/piebox-etc && \
+  mount -t tmpfs tmpfs /run/piebox-sudo && \
+  mount -t tmpfs tmpfs /run/piebox-etc && \
+  cp /usr/bin/sudo /run/piebox-sudo/sudo && \
+  chmod 4755 /run/piebox-sudo/sudo && \
+  cp /etc/sudoers /etc/sudo.conf /run/piebox-etc/ && \
+  chmod 0440 /run/piebox-etc/sudoers /run/piebox-etc/sudo.conf && \
+  cp -r /etc/sudoers.d /run/piebox-etc/ && \
+  chmod 0440 /run/piebox-etc/sudoers.d/* 2>/dev/null || true; \
+  mount --bind /run/piebox-sudo/sudo /usr/bin/sudo && \
+  mount --bind /run/piebox-etc/sudoers /etc/sudoers && \
+  mount --bind /run/piebox-etc/sudo.conf /etc/sudo.conf && \
+  mount --bind /run/piebox-etc/sudoers.d /etc/sudoers.d'
 
 [Install]
 WantedBy=sysinit.target
