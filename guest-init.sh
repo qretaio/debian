@@ -8,7 +8,7 @@ mount -t sysfs sysfs /sys 2>/dev/null || true
 
 # Mount virtiofs shares passed as KRUN_MOUNT_<i>="tag:guest_path".
 for envvar in $(env | grep '^KRUN_MOUNT_' | cut -d= -f1); do
-    spec=$(eval echo \$$envvar)
+    spec=$(eval "printf '%s' \"\${$envvar}\"")
     tag=${spec%%:*}
     path=${spec#*:}
     mkdir -p "$path" 2>/dev/null || true
