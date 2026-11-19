@@ -1,0 +1,27 @@
+[Unit]
+Description=Match guest qreta uid to the host uid that owns the rootfs
+DefaultDependencies=no
+Before=sysinit.target
+Before=piebox-boot.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+# The zygote rootfs is extracted on an unprivileged macOS host, so every file
+# (including /home/qreta) is owned by the HOST uid (e.g. 501) and virtiofs
+# ignores chown. The image bakes qreta as uid 1000, so the guest user cannot
+# write its own home (rustup/cargo/git all fail). Rewrite qreta's uid/gid to
+# the actual owner of /home/qreta — then ownership matches and everything
+# just works. Also covers group and shadow entries.
+ExecStart=/bin/sh -c '\
+  HOST_UID=$(stat -c %u /home/qreta 2>/dev/null) && \
+  HOST_GID=$(stat -c %g /home/qreta 2>/dev/null) && \
+  [ -n "$HOST_UID" ] && [ "$HOST_UID" != "1000" ] && { \
+    sed -i "s/^qreta:x:1000:1000:/qreta:x:${HOST_UID}:${HOST_GID}:/" /etc/passwd; \
+    sed -i "s/^qreta:x:1000:/qreta:x:${HOST_GID}:/" /etc/group; \
+    sed -i "s/^qreta:!:/qreta:!:/" /etc/shadow; \
+    id qreta; \
+  } || true'
+
+[Install]
+WantedBy=sysinit.target
