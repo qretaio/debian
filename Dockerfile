@@ -50,7 +50,7 @@ RUN groupadd -g 1000 qreta && \
 # lookup as root, so /etc/piebox/authorized_keys is always readable.
 RUN mkdir -p /etc/piebox && \
     printf '%s\n' 'Port 2222' 'PermitRootLogin no' 'PubkeyAuthentication yes' \
-        'PasswordAuthentication no' 'AllowUsers qreta' \
+        'PasswordAuthentication no' 'AllowUsers qreta' 'StrictModes no' \
         'AuthorizedKeysFile /etc/piebox/authorized_keys' \
         'ClientAliveInterval 5' 'ClientAliveCountMax 6' \
         > /etc/ssh/sshd_config.d/99-qreta.conf
