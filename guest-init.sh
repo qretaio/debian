@@ -15,9 +15,11 @@ for envvar in $(env | grep '^KRUN_MOUNT_' | cut -d= -f1); do
     mount -t virtiofs "$tag" "$path" 2>/dev/null || true
 done
 
-# Hostname (also baked into /etc/hostname by provision.sh; set it at boot so
+# Hostname (also baked into /etc/hostname by the image; set it at boot so
 # libkrun's init, which may not read /etc/hostname, still reports it).
 hostname piebox 2>/dev/null || true
+grep -q '[[:space:]]piebox\([[:space:]]\|$\)' /etc/hosts 2>/dev/null || \
+    printf '127.0.0.1\tlocalhost piebox\n' >> /etc/hosts 2>/dev/null || true
 
 mkdir -p /run/sshd /etc/ssh/sshd_config.d /var/cache/man
 mount -t tmpfs tmpfs /var/cache/man 2>/dev/null || true

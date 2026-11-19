@@ -26,9 +26,9 @@ RUN --mount=type=cache,target=/var/cache/apt \
         iproute2 procps coreutils bash passwd && \
     apt-get clean
 
-# Hostname: piebox. Both /etc/hostname and /etc/hosts for `hostname -f`.
-RUN printf 'piebox\n' > /etc/hostname && \
-    printf '127.0.0.1\tlocalhost piebox\n' > /etc/hosts
+# Hostname: piebox. /etc/hosts is bind-mounted read-only during docker build,
+# so the guest init writes the local resolution line at boot instead.
+RUN printf 'piebox\n' > /etc/hostname
 
 # The `qreta` login user: locked password, bash, uid/gid 1000, sudo group.
 # The home files are created here with the base 1000 ids; piebox clones the
