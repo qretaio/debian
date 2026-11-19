@@ -12,16 +12,16 @@ RemainAfterExit=yes
 # ignores chown. The image bakes qreta as uid 1000, so the guest user cannot
 # write its own home (rustup/cargo/git all fail). Rewrite qreta's uid/gid to
 # the actual owner of /home/qreta — then ownership matches and everything
-# just works. Also covers group and shadow entries.
+# just works. Note: systemd expands $VAR in ExecStart itself, so shell vars
+# are written with $$ to reach /bin/sh literally.
 ExecStart=/bin/sh -c '\
-  HOST_UID=$(stat -c %u /home/qreta 2>/dev/null) && \
-  HOST_GID=$(stat -c %g /home/qreta 2>/dev/null) && \
-  [ -n "$HOST_UID" ] && [ "$HOST_UID" != "1000" ] && { \
-    sed -i "s/^qreta:x:1000:1000:/qreta:x:${HOST_UID}:${HOST_GID}:/" /etc/passwd; \
-    sed -i "s/^qreta:x:1000:/qreta:x:${HOST_GID}:/" /etc/group; \
-    sed -i "s/^qreta:!:/qreta:!:/" /etc/shadow; \
+  HOST_UID=$$(stat -c %u /home/qreta 2>/dev/null) && \
+  HOST_GID=$$(stat -c %g /home/qreta 2>/dev/null) && \
+  if [ -n "$$HOST_UID" ] && [ "$$HOST_UID" != "1000" ] && [ -n "$$HOST_GID" ]; then \
+    sed -i "s/^qreta:x:[0-9]*:[0-9]*:/qreta:x:$${HOST_UID}:$${HOST_GID}:/" /etc/passwd; \
+    sed -i "s/^qreta:x:[0-9]*:/qreta:x:$${HOST_GID}:/" /etc/group; \
     id qreta; \
-  } || true'
+  fi'
 
 [Install]
 WantedBy=sysinit.target
