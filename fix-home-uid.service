@@ -11,13 +11,16 @@ RemainAfterExit=yes
 # (including /home/qreta) is owned by the HOST uid (e.g. 501) and virtiofs
 # ignores chown. The image bakes qreta as uid 1000, so the guest user cannot
 # write its own home (rustup/cargo/git all fail). Rewrite qreta's uid/gid to
-# the actual owner of /home/qreta — then ownership matches and everything
-# just works. Note: systemd expands $VAR in ExecStart itself, so shell vars
-# are written with $$ to reach /bin/sh literally.
+# the numeric owner of /home/qreta. Use `ls -ln` (numeric) because `stat -c
+# %u` can return the NAME ("root") on this virtiofs. systemd expands $VAR in
+# ExecStart itself, so shell vars use $$ to reach /bin/sh literally.
 ExecStart=/bin/sh -c '\
-  HOST_UID=$$(stat -c %u /home/qreta 2>/dev/null) && \
-  HOST_GID=$$(stat -c %g /home/qreta 2>/dev/null) && \
-  if [ -n "$$HOST_UID" ] && [ "$$HOST_UID" != "1000" ] && [ -n "$$HOST_GID" ]; then \
+  HOST_UID=$$(ls -ldn /home/qreta 2>/dev/null | awk "{print \$$3}") && \
+  HOST_GID=$$(ls -ldn /home/qreta 2>/dev/null | awk "{print \$$4}") && \
+  case "$$HOST_UID" in \
+    ""|*[!0-9]*) exit 0 ;; \
+  esac && \
+  if [ "$$HOST_UID" != "1000" ] && [ -n "$$HOST_GID" ]; then \
     sed -i "s/^qreta:x:[0-9]*:[0-9]*:/qreta:x:$${HOST_UID}:$${HOST_GID}:/" /etc/passwd; \
     sed -i "s/^qreta:x:[0-9]*:/qreta:x:$${HOST_GID}:/" /etc/group; \
     id qreta; \
