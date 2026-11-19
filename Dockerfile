@@ -25,9 +25,13 @@ RUN --mount=type=cache,target=/var/cache/apt \
         sudo python3-minimal iproute2 procps coreutils bash passwd && \
     apt-get clean
 
-# Hostname: piebox. /etc/hosts is bind-mounted read-only during docker build,
-# so the systemd unit below writes the local resolution line at boot.
-RUN printf 'piebox\n' > /etc/hostname
+# Hostname: piebox. /etc/hosts and /etc/resolv.conf are bind-mounted read-only
+# during docker build, so stage our versions under /opt/piebox-image and COPY
+# them into the final scratch stage below (no Docker mounts there).
+RUN printf 'piebox\n' > /etc/hostname && \
+    mkdir -p /opt/piebox-image && \
+    printf '127.0.0.1\tlocalhost piebox\n' > /opt/piebox-image/hosts && \
+    printf 'options use-vc\nnameserver 1.1.1.1\n' > /opt/piebox-image/resolv.conf
 
 # The `qreta` login user: locked password, bash, uid/gid 1000, sudo group.
 RUN groupadd -g 1000 qreta && \
@@ -71,16 +75,29 @@ COPY piebox-vsock-bridge.service /etc/systemd/system/piebox-vsock-bridge.service
 # line (Docker keeps /etc/hosts read-only during image build). cgroup v2 is
 # mounted by systemd itself from the `systemd.unified_cgroup_hierarchy=1`
 # kernel cmdline that piebox passes at boot.
-COPY piebox-boot.service /etc/systemd/system/piebox-boot.service
 COPY fix-ownership.service /etc/systemd/system/fix-ownership.service
 COPY fix-home-uid.service /etc/systemd/system/fix-home-uid.service
 
-# DNS is set by piebox-boot.service at boot (Docker mounts /etc/resolv.conf
-# read-only during image build). TCP resolver so TSI proxies DNS via vsock.
+# /etc/hosts and /etc/resolv.conf are baked into the FINAL stage (FROM scratch
+# has no Docker bind mounts, unlike the builder). TCP resolver so TSI proxies
+# DNS via vsock; local piebox hostname so `hostname -f` resolves.
 # dbus-daemon --system gives systemctl its system bus socket
 # (/run/dbus/system_bus_socket). Postinst in a container may not enable it.
 RUN ln -sf /lib/systemd/system/dbus.service /etc/systemd/system/multi-user.target.wants/dbus.service && \
-    systemctl enable ssh.service piebox-vsock-bridge.service piebox-boot.service fix-ownership.service fix-home-uid.service
+    systemctl enable ssh.service piebox-vsock-bridge.service fix-ownership.service fix-home-uid.service
+
+# Bake root-owned, setuid source files for the boot-time sudo fix. The host
+# extraction sets every file to the host uid and virtiofs ignores chown, so
+# the boot unit copies these into a tmpfs (where root ownership works) and
+# bind-mounts them into place. Keeping the correct files HERE means the unit
+# needs no chown/chmod logic of its own.
+RUN mkdir -p /opt/piebox-image/sudo/sudoers.d && \
+    cp /usr/bin/sudo /opt/piebox-image/sudo/sudo && \
+    chmod 4755 /opt/piebox-image/sudo/sudo && \
+    cp /etc/sudoers /etc/sudo.conf /opt/piebox-image/sudo/ && \
+    cp /etc/sudoers.d/* /opt/piebox-image/sudo/sudoers.d/ && \
+    chmod 0440 /opt/piebox-image/sudo/sudoers /opt/piebox-image/sudo/sudo.conf \
+        /opt/piebox-image/sudo/sudoers.d/*
 
 # A marker so piebox can tell a properly built zygote from a random image.
 RUN printf 'single-layer-systemd\n' > /etc/piebox-zygote
@@ -90,6 +107,10 @@ RUN printf 'single-layer-systemd\n' > /etc/piebox-zygote
 # image gives piebox a pristine rootfs tree to clone.
 FROM scratch
 COPY --from=builder / /
+# Baked here (not in the builder) because Docker bind-mounts these paths
+# read-only during build; the final scratch stage has no such mounts.
+COPY --from=builder /opt/piebox-image/hosts /etc/hosts
+COPY --from=builder /opt/piebox-image/resolv.conf /etc/resolv.conf
 
 LABEL org.opencontainers.image.title="qretaio/debian" \
       org.opencontainers.image.description="piebox dev-box zygote base (Debian 13, systemd PID 1, qreta user, hostname piebox)" \

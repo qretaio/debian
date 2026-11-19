@@ -1,27 +1,23 @@
 [Unit]
-Description=Fix sudo on the unprivileged-host rootfs
+Description=Mount root-owned sudo from baked sources (host rootfs uid is wrong)
 DefaultDependencies=no
 Before=sysinit.target
 
 [Service]
 Type=oneshot
 RemainAfterExit=yes
-# The zygote rootfs is built/extracted on an unprivileged macOS host, so ALL
-# files are owned by the host uid (501) and virtiofs (LinuxSimplified) ignores
-# chown. sudo refuses a non-root-owned /etc/sudoers and a non-setuid binary.
-# Give sudo a tmpfs-backed copy (where root ownership + setuid DO work) and
-# bind-mount it over /usr/bin/sudo; also bind-mount sudoers from tmpfs so the
-# ownership check passes. Everything happens in the guest, where we are root.
+# The host extraction sets every file to the host uid and virtiofs ignores
+# chown, so /etc/sudoers (owned by 501) is rejected by sudo. The image bakes
+# correct root-owned, setuid sources under /opt/piebox-image/sudo; copy them
+# to a tmpfs (where ownership+setuid work) and bind-mount into place. No
+# chown/chmod logic lives here — it is all in the Dockerfile now.
 ExecStart=/bin/sh -c '\
   mkdir -p /run/piebox-sudo /run/piebox-etc && \
   mount -t tmpfs tmpfs /run/piebox-sudo && \
   mount -t tmpfs tmpfs /run/piebox-etc && \
-  cp /usr/bin/sudo /run/piebox-sudo/sudo && \
-  chmod 4755 /run/piebox-sudo/sudo && \
-  cp /etc/sudoers /etc/sudo.conf /run/piebox-etc/ && \
-  chmod 0440 /run/piebox-etc/sudoers /run/piebox-etc/sudo.conf && \
-  cp -r /etc/sudoers.d /run/piebox-etc/ && \
-  chmod 0440 /run/piebox-etc/sudoers.d/* 2>/dev/null || true; \
+  cp -a /opt/piebox-image/sudo/sudo /run/piebox-sudo/sudo && \
+  cp -a /opt/piebox-image/sudo/sudoers /opt/piebox-image/sudo/sudo.conf /run/piebox-etc/ && \
+  cp -a /opt/piebox-image/sudo/sudoers.d /run/piebox-etc/ && \
   mount --bind /run/piebox-sudo/sudo /usr/bin/sudo && \
   mount --bind /run/piebox-etc/sudoers /etc/sudoers && \
   mount --bind /run/piebox-etc/sudo.conf /etc/sudo.conf && \

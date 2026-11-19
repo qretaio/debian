@@ -32,6 +32,9 @@ without credentials.
 
 - `Dockerfile` — two-stage build: `debian:trixie` builder assembles the root,
   then `FROM scratch; COPY --from=builder / /` flattens it to one layer.
-- `piebox-boot.service`, `piebox-vsock-bridge.service`, `vsock-bridge.py` —
-  the systemd units + bridge that replace the old `/piebox-init.sh` script.
+- `fix-ownership.service`, `fix-home-uid.service`, `piebox-vsock-bridge.service`,
+  `vsock-bridge.py` — the few runtime units that must exist (host uid is only
+  known at boot; tmpfs can't be baked). Everything static — hostname,
+  `/etc/hosts`, `/etc/resolv.conf`, sudo/sudoers source files, sshd config,
+  apt config, the qreta user — is baked into the image by the Dockerfile.
 - `.github/workflows/build.yml` — builds/pushes the public image.
