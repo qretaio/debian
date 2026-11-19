@@ -1,0 +1,16 @@
+[Unit]
+Description=Install baked /etc/hosts and /etc/resolv.conf
+DefaultDependencies=no
+Before=sysinit.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+# Docker bind-mounts /etc/hosts and /etc/resolv.conf at runtime, so `docker
+# export` exports those runtime mounts instead of the versions baked into the
+# image by the Dockerfile. The baked originals live under /opt/piebox-image;
+# copy them into place now that we're booting in the real VM (no Docker).
+ExecStart=/bin/sh -c 'cp /opt/piebox-image/hosts /etc/hosts && cp /opt/piebox-image/resolv.conf /etc/resolv.conf'
+
+[Install]
+WantedBy=sysinit.target

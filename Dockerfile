@@ -75,6 +75,7 @@ COPY piebox-vsock-bridge.service /etc/systemd/system/piebox-vsock-bridge.service
 # line (Docker keeps /etc/hosts read-only during image build). cgroup v2 is
 # mounted by systemd itself from the `systemd.unified_cgroup_hierarchy=1`
 # kernel cmdline that piebox passes at boot.
+COPY piebox-boot.service /etc/systemd/system/piebox-boot.service
 COPY fix-ownership.service /etc/systemd/system/fix-ownership.service
 COPY fix-home-uid.service /etc/systemd/system/fix-home-uid.service
 
@@ -84,7 +85,7 @@ COPY fix-home-uid.service /etc/systemd/system/fix-home-uid.service
 # dbus-daemon --system gives systemctl its system bus socket
 # (/run/dbus/system_bus_socket). Postinst in a container may not enable it.
 RUN ln -sf /lib/systemd/system/dbus.service /etc/systemd/system/multi-user.target.wants/dbus.service && \
-    systemctl enable ssh.service piebox-vsock-bridge.service fix-ownership.service fix-home-uid.service
+    systemctl enable ssh.service piebox-vsock-bridge.service piebox-boot.service fix-ownership.service fix-home-uid.service
 
 # Bake root-owned, setuid source files for the boot-time sudo fix. The host
 # extraction sets every file to the host uid and virtiofs ignores chown, so
@@ -107,10 +108,9 @@ RUN printf 'single-layer-systemd\n' > /etc/piebox-zygote
 # image gives piebox a pristine rootfs tree to clone.
 FROM scratch
 COPY --from=builder / /
-# Baked here (not in the builder) because Docker bind-mounts these paths
-# read-only during build; the final scratch stage has no such mounts.
-COPY --from=builder /opt/piebox-image/hosts /etc/hosts
-COPY --from=builder /opt/piebox-image/resolv.conf /etc/resolv.conf
+# Note: Docker bind-mounts /etc/hosts and /etc/resolv.conf into the export
+# container, so they get exported from the runtime mounts, not the layers.
+# piebox-boot.service copies our baked versions from /opt/piebox-image at boot.
 
 LABEL org.opencontainers.image.title="qretaio/debian" \
       org.opencontainers.image.description="piebox dev-box zygote base (Debian 13, systemd PID 1, qreta user, hostname piebox)" \
