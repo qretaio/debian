@@ -12,12 +12,15 @@ RemainAfterExit=yes
 # to a tmpfs (where ownership+setuid work) and bind-mount into place. No
 # chown/chmod logic lives here — it is all in the Dockerfile now.
 ExecStart=/bin/sh -c '\
-  mkdir -p /run/piebox-sudo /run/piebox-etc && \
+  mkdir -p /run/piebox-sudo /run/piebox-etc/sudoers.d && \
   mount -t tmpfs tmpfs /run/piebox-sudo && \
   mount -t tmpfs tmpfs /run/piebox-etc && \
-  cp -a /opt/piebox-image/sudo/sudo /run/piebox-sudo/sudo && \
-  cp -a /opt/piebox-image/sudo/sudoers /opt/piebox-image/sudo/sudo.conf /run/piebox-etc/ && \
-  cp -a /opt/piebox-image/sudo/sudoers.d /run/piebox-etc/ && \
+  cp /opt/piebox-image/sudo/sudo /run/piebox-sudo/sudo && \
+  chmod 4755 /run/piebox-sudo/sudo && \
+  cp /opt/piebox-image/sudo/sudoers /opt/piebox-image/sudo/sudo.conf /run/piebox-etc/ && \
+  chmod 0440 /run/piebox-etc/sudoers /run/piebox-etc/sudo.conf && \
+  cp /opt/piebox-image/sudo/sudoers.d/* /run/piebox-etc/sudoers.d/ && \
+  chmod 0440 /run/piebox-etc/sudoers.d/* && \
   mount --bind /run/piebox-sudo/sudo /usr/bin/sudo && \
   mount --bind /run/piebox-etc/sudoers /etc/sudoers && \
   mount --bind /run/piebox-etc/sudo.conf /etc/sudo.conf && \
