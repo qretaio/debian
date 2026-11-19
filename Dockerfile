@@ -39,8 +39,12 @@ RUN groupadd -g 1000 qreta && \
     chmod 0700 /home/qreta/.ssh /root/.ssh
 
 # sshd: key-only on port 2222, qreta only (kept from the pre-systemd image).
+# StrictModes no: the zygote bakes qreta as uid 1000, but per-box keys are
+# written on the HOST as the host user's uid (501 on macOS). An unprivileged
+# host cannot chown them to 1000, so sshd's strict ownership check would
+# reject every key. The box is single-user, so relax it.
 RUN printf '%s\n' 'Port 2222' 'PermitRootLogin no' 'PubkeyAuthentication yes' \
-        'PasswordAuthentication no' 'AllowUsers qreta' \
+        'PasswordAuthentication no' 'AllowUsers qreta' 'StrictModes no' \
         'ClientAliveInterval 5' 'ClientAliveCountMax 6' \
         > /etc/ssh/sshd_config.d/99-qreta.conf
 
