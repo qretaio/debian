@@ -1,0 +1,12 @@
+[Unit]
+Description=piebox boot setup (hostname + local hosts entry)
+DefaultDependencies=no
+Before=sysinit.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/bin/sh -c 'hostname piebox 2>/dev/null || true; grep -q "[[:space:]]piebox\\([[:space:]]\\|$\\)" /etc/hosts 2>/dev/null || printf "127.0.0.1\\tlocalhost piebox\\n" >> /etc/hosts'
+
+[Install]
+WantedBy=sysinit.target

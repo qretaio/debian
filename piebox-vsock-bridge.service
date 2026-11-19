@@ -1,0 +1,15 @@
+[Unit]
+Description=piebox vsock -> sshd bridge
+After=network.target ssh.service
+Wants=ssh.service
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/piebox-vsock-bridge
+Restart=always
+RestartSec=1
+StandardOutput=append:/var/log/piebox-vsock-bridge.log
+StandardError=append:/var/log/piebox-vsock-bridge.log
+
+[Install]
+WantedBy=multi-user.target
