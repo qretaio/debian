@@ -21,7 +21,7 @@ RUN --mount=type=cache,target=/var/cache/apt \
     --mount=type=cache,target=/var/lib/apt/lists \
     apt-get update -qq && \
     apt-get install -y -qq --no-install-recommends \
-        systemd systemd-sysv apt gnupg ca-certificates openssh-server \
+        systemd systemd-sysv dbus apt gnupg ca-certificates openssh-server \
         sudo python3-minimal iproute2 procps coreutils bash passwd && \
     apt-get clean
 
@@ -75,7 +75,10 @@ COPY piebox-boot.service /etc/systemd/system/piebox-boot.service
 
 # DNS is set by piebox-boot.service at boot (Docker mounts /etc/resolv.conf
 # read-only during image build). TCP resolver so TSI proxies DNS via vsock.
-RUN systemctl enable ssh.service piebox-vsock-bridge.service piebox-boot.service
+# dbus-daemon --system gives systemctl its system bus socket
+# (/run/dbus/system_bus_socket). Postinst in a container may not enable it.
+RUN ln -sf /lib/systemd/system/dbus.service /etc/systemd/system/multi-user.target.wants/dbus.service && \
+    systemctl enable ssh.service piebox-vsock-bridge.service piebox-boot.service
 
 # A marker so piebox can tell a properly built zygote from a random image.
 RUN printf 'single-layer-systemd\n' > /etc/piebox-zygote
