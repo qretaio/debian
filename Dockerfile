@@ -43,8 +43,15 @@ RUN groupadd -g 1000 qreta && \
 # written on the HOST as the host user's uid (501 on macOS). An unprivileged
 # host cannot chown them to 1000, so sshd's strict ownership check would
 # reject every key. The box is single-user, so relax it.
-RUN printf '%s\n' 'Port 2222' 'PermitRootLogin no' 'PubkeyAuthentication yes' \
-        'PasswordAuthentication no' 'AllowUsers qreta' 'StrictModes no' \
+# AuthorizedKeysFile points at a central, root-readable path: per-box keys
+# are written by the HOST user onto a virtiofs rootfs owned by a different
+# uid than the guest's qreta (1000), and neither ownership nor mode changes
+# are reliable through the simplified virtiofs semantics. sshd runs its key
+# lookup as root, so /etc/piebox/authorized_keys is always readable.
+RUN mkdir -p /etc/piebox && \
+    printf '%s\n' 'Port 2222' 'PermitRootLogin no' 'PubkeyAuthentication yes' \
+        'PasswordAuthentication no' 'AllowUsers qreta' \
+        'AuthorizedKeysFile /etc/piebox/authorized_keys' \
         'ClientAliveInterval 5' 'ClientAliveCountMax 6' \
         > /etc/ssh/sshd_config.d/99-qreta.conf
 
