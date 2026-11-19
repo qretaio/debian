@@ -10,7 +10,7 @@ RemainAfterExit=yes
 # is owned by the host uid (501) rather than root. sudo rejects a non-root
 # owned /etc/sudoers; sshd rejects non-root host keys. Fix the few files that
 # care, inside the guest where we ARE root.
-ExecStart=/bin/sh -c 'chown root:root /etc/sudoers /etc/sudoers.d /etc/sudoers.d/* 2>/dev/null || true; chmod 0440 /etc/sudoers /etc/sudoers.d/* 2>/dev/null || true; chown root:root /etc/ssh/ssh_host_* 2>/dev/null || true'
+ExecStart=/bin/sh -c 'chown root:root /etc/sudoers /etc/sudo.conf /etc/sudoers.d /etc/sudoers.d/* /usr/bin/sudo /usr/lib/sudo/sudoers.so /etc/ssh/ssh_host_* 2>/dev/null || true; chmod 0440 /etc/sudoers /etc/sudo.conf /etc/sudoers.d/* 2>/dev/null || true; install -m 4755 -o root /usr/bin/sudo /usr/local/bin/sudo 2>/dev/null || true'
 
 [Install]
 WantedBy=sysinit.target
